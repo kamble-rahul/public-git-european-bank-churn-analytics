@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this educational project, please cite it as below."
+title: "European Bank Customer Segmentation and Churn Analytics"
+type: software
+authors:
+  - family-names: Kamble
+    given-names: Rahul
+repository-code: "https://github.com/kamble-rahul/public-git-european-bank-churn-analytics"
+url: "https://rahul-european-bank-churn-analytics.streamlit.app"
+version: 0.2.0
+date-released: 2026-09-11

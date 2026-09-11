@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 
-from churn_analysis import (
+from european_bank_churn import (
     high_value_summary,
     load_excel,
     overall_kpis,
@@ -15,7 +15,9 @@ from churn_analysis import (
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Validate a banking workbook and print headline churn KPIs."
+    )
     parser.add_argument("workbook", help="Path to European_Bank (5).xlsx")
     args = parser.parse_args()
 
