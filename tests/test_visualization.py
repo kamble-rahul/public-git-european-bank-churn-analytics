@@ -6,11 +6,13 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
+from european_bank_churn.data import prepare_data
 from european_bank_churn.visualization import (
     churn_bar,
     confusion_matrix_figure,
     feature_importance_figure,
     geography_age_heatmap,
+    salary_balance_scatter,
 )
 
 
@@ -54,3 +56,13 @@ def test_model_diagnostic_figures_are_labeled():
     )
     assert matrix_figure.layout.title.text == "Confusion matrix"
     assert importance_figure.layout.title.text == "Random Forest feature importance"
+
+
+def test_salary_balance_scatter_contains_both_churn_classes(customer_frame):
+    prepared_data, _ = prepare_data(customer_frame)
+    figure = salary_balance_scatter(prepared_data)
+    assert figure.layout.title.text == "Salary and balance profile by churn status"
+    assert {trace.name.split(",")[0] for trace in figure.data} == {
+        "Retained",
+        "Churned",
+    }

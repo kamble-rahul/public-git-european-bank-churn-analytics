@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0 — 2026-09-12
+
+- Added a reproducible Markdown EDA report generated from the supplied workbook.
+- Added a beginner implementation guide and requirement traceability matrix.
+- Added tenure, credit, balance, activity, and product filters to the dashboard.
+- Added the geographic risk-index table and salary-versus-balance high-value analysis.
+- Added a high-value customer CSV download and expanded visualization tests.
+- Standardized local test execution across PyCharm, terminal, and CI environments.
+
 ## 0.2.0 — 2026-09-11
 
 - Restructured the project into reusable data, analytics, modeling, visualization, and dashboard

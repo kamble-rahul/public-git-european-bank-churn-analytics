@@ -1,4 +1,4 @@
-.PHONY: install install-dev run test lint quality smoke
+.PHONY: install install-dev run test lint quality smoke eda
 
 install:
 	python -m pip install -r requirements.txt
@@ -7,15 +7,18 @@ install-dev:
 	python -m pip install -r requirements-dev.txt
 
 run:
-	streamlit run app.py
+	python -m streamlit run app.py
 
 test:
-	pytest
+	python -m pytest
 
 lint:
-	ruff check .
+	python -m ruff check .
 
 quality: lint test
 
 smoke:
 	python smoke_test.py "$(WORKBOOK)"
+
+eda:
+	python scripts/generate_eda_report.py "$(WORKBOOK)"

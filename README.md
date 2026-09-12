@@ -1,14 +1,11 @@
 # European Bank Customer Segmentation & Churn Analytics
 
-[![Live app](https://img.shields.io/badge/Streamlit-Live_app-FF4B4B?logo=streamlit&logoColor=white)](https://rahul-european-bank-churn-analytics.streamlit.app)
 [![Python quality checks](https://github.com/kamble-rahul/public-git-european-bank-churn-analytics/actions/workflows/ci.yml/badge.svg)](https://github.com/kamble-rahul/public-git-european-bank-churn-analytics/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 
 An end-to-end portfolio project for validating customer data, creating business-defined
 segments, measuring churn patterns, comparing classification models, and presenting the
 results in an interactive Streamlit dashboard.
-
-**Live dashboard:** <https://rahul-european-bank-churn-analytics.streamlit.app>
 
 > The customer-level workbook is deliberately excluded from GitHub. The application processes
 > an uploaded `.xlsx` file in memory. The supplied file does not contain authoritative provenance
@@ -30,6 +27,8 @@ results in an interactive Streamlit dashboard.
 - Updates KPIs and charts from geography, gender, and age filters.
 - Provides segment drill-down tables and CSV downloads.
 - Explores geography × age interactions and high-value balance exposure.
+- Filters by geography, gender, age, tenure, credit, balance, activity, and product count.
+- Compares estimated salary and balance visually for high-value churn analysis.
 - Compares Logistic Regression and Random Forest using ROC-AUC, PR-AUC, recall, precision,
   F1, accuracy, and a confusion matrix.
 - Allows the Random Forest decision threshold to be adjusted for campaign capacity.
@@ -68,6 +67,7 @@ proxy, not recognized revenue loss.
 ├── models/                  # Local model artifacts; contents are gitignored
 ├── notebooks/               # Numbered exploration notebooks and guidance
 ├── reports/                 # Research paper, executive summary, and figures
+├── scripts/                 # Reproducible report-generation commands
 ├── tests/                   # Synthetic unit and integration tests
 ├── app.py                   # Thin Streamlit Cloud entrypoint
 ├── Makefile                 # Common local commands
@@ -111,14 +111,20 @@ Upload a workbook containing the columns in [the data dictionary](docs/data_dict
 
 ```bash
 python -m pip install -r requirements-dev.txt
-ruff check .
-pytest --cov=european_bank_churn
+python -m ruff check .
+python -m pytest --cov=european_bank_churn
 ```
 
 To validate the real workbook locally without publishing it:
 
 ```bash
 python smoke_test.py "/full/path/to/European_Bank (5).xlsx"
+```
+
+To regenerate the full Markdown EDA report from the workbook:
+
+```bash
+python scripts/generate_eda_report.py "/full/path/to/European_Bank (5).xlsx"
 ```
 
 ## Method summary
@@ -142,10 +148,12 @@ component used to rank churn risk, not a replacement for business KPI analysis.
 ## Documentation and deliverables
 
 - [Architecture](docs/architecture.md)
+- [Beginner implementation guide](docs/implementation_guide.md)
 - [Data dictionary](docs/data_dictionary.md)
 - [Analytical methodology and KPI formulas](docs/methodology.md)
 - [Model card and responsible-use limits](docs/model_card.md)
 - [Research paper](reports/research_paper.md)
+- [Exploratory data analysis report](reports/eda_report.md)
 - [Executive summary for public-sector stakeholders](reports/executive_summary.md)
 - [Notebook workflow](notebooks/README.md)
 - [Contribution guide](CONTRIBUTING.md)

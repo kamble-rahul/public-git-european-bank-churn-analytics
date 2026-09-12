@@ -23,6 +23,7 @@ from .visualization import (
     confusion_matrix_figure,
     feature_importance_figure,
     geography_age_heatmap,
+    salary_balance_scatter,
 )
 
 st.set_page_config(
@@ -63,9 +64,28 @@ def _render_overview(
     )
 
     geography_summary = segment_summary(filtered, "Geography")
+    geography_summary["GeographicRiskIndex"] = (
+        geography_summary["ChurnRate"] / kpis["churn_rate"]
+        if kpis["churn_rate"]
+        else 0.0
+    )
     st.plotly_chart(
         churn_bar(geography_summary, "Geography", "Churn rate by geography"),
         width="stretch",
+    )
+    st.subheader("Geographic risk index")
+    st.dataframe(
+        geography_summary[
+            ["Geography", "Customers", "Churners", "ChurnRate", "GeographicRiskIndex"]
+        ].style.format(
+            {"ChurnRate": "{:.1%}", "GeographicRiskIndex": "{:.2f}x"}
+        ),
+        width="stretch",
+        hide_index=True,
+    )
+    st.caption(
+        "A value above 1.00x means the geography's churn rate is above the current "
+        "filtered portfolio average."
     )
     st.caption(
         "Risk describes association in this dataset. It does not prove that geography, "
@@ -165,6 +185,7 @@ def _render_high_value(
         churn_bar(premium_geo, "Geography", "High-value churn by geography"),
         width="stretch",
     )
+    st.plotly_chart(salary_balance_scatter(premium), width="stretch")
     columns = [
         "CustomerId",
         "Geography",
@@ -181,6 +202,12 @@ def _render_high_value(
         premium.sort_values(["Exited", "Balance"], ascending=[False, False])[columns].head(200),
         width="stretch",
         hide_index=True,
+    )
+    st.download_button(
+        "Download filtered high-value customers",
+        data=premium[columns].to_csv(index=False).encode("utf-8"),
+        file_name="high_value_customers.csv",
+        mime="text/csv",
     )
 
 
@@ -333,11 +360,46 @@ def run_dashboard() -> None:
         list(AGE_LABELS),
         default=list(AGE_LABELS),
     )
+    tenure_options = [str(value) for value in data["TenureGroup"].cat.categories]
+    tenure_groups = st.sidebar.multiselect(
+        "Tenure group",
+        tenure_options,
+        default=tenure_options,
+    )
+    credit_options = [str(value) for value in data["CreditBand"].cat.categories]
+    credit_bands = st.sidebar.multiselect(
+        "Credit-score band",
+        credit_options,
+        default=credit_options,
+    )
+    balance_options = sorted(data["BalanceSegment"].dropna().unique())
+    balance_segments = st.sidebar.multiselect(
+        "Balance segment",
+        balance_options,
+        default=balance_options,
+    )
+    activity_options = sorted(data["ActivityLabel"].dropna().unique())
+    activity_labels = st.sidebar.multiselect(
+        "Activity",
+        activity_options,
+        default=activity_options,
+    )
+    product_options = sorted(data["NumOfProducts"].dropna().astype(int).unique())
+    products = st.sidebar.multiselect(
+        "Number of products",
+        product_options,
+        default=product_options,
+    )
 
     filtered = data[
         data["Geography"].isin(geographies)
         & data["Gender"].isin(genders)
         & data["AgeGroup"].astype(str).isin(age_groups)
+        & data["TenureGroup"].astype(str).isin(tenure_groups)
+        & data["CreditBand"].astype(str).isin(credit_bands)
+        & data["BalanceSegment"].isin(balance_segments)
+        & data["ActivityLabel"].isin(activity_labels)
+        & data["NumOfProducts"].isin(products)
     ].copy()
     if filtered.empty:
         st.warning("The current filters return no customers.")

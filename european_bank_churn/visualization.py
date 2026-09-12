@@ -74,3 +74,31 @@ def feature_importance_figure(importances: pd.DataFrame) -> go.Figure:
         orientation="h",
         title="Random Forest feature importance",
     )
+
+
+def salary_balance_scatter(df: pd.DataFrame) -> go.Figure:
+    """Compare salary and balance while making churn and geography visible."""
+    chart_data = df.copy()
+    chart_data["Churn status"] = chart_data["Exited"].map(
+        {0: "Retained", 1: "Churned"}
+    )
+    figure = px.scatter(
+        chart_data,
+        x="EstimatedSalary",
+        y="Balance",
+        color="Churn status",
+        symbol="Geography",
+        opacity=0.55,
+        color_discrete_map={"Retained": "#4C78A8", "Churned": "#E45756"},
+        hover_data={
+            "CustomerId": True,
+            "Age": True,
+            "NumOfProducts": True,
+            "EstimatedSalary": ":,.2f",
+            "Balance": ":,.2f",
+        },
+        title="Salary and balance profile by churn status",
+    )
+    figure.update_xaxes(title="Estimated salary")
+    figure.update_yaxes(title="Account balance")
+    return figure
