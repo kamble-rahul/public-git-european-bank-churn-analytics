@@ -27,7 +27,8 @@ learning is an extension that ranks customer churn risk. It does not replace the
 | Ruff | Code quality | Finds common Python errors and style problems |
 | Git and GitHub | Version control and sharing | Tracks changes and publishes source code when the owner chooses |
 
-No database or paid cloud service is required. The uploaded workbook is processed in memory.
+No database or paid cloud service is required. The deployed application reads a bundled,
+de-identified compressed dataset automatically.
 
 ## 3. Project structure
 
@@ -42,6 +43,7 @@ No database or paid cloud service is required. The uploaded workbook is processe
 │   ├── visualization.py           # Plotly chart functions
 │   └── dashboard.py               # Streamlit layout, filters, tabs, and downloads
 ├── scripts/
+│   ├── build_dashboard_dataset.py # Creates the privacy-safe deployed data asset
 │   └── generate_eda_report.py     # Rebuilds reports/eda_report.md from a workbook
 ├── notebooks/                     # Guided EDA notebook
 ├── reports/                       # EDA, research paper, and executive summary
@@ -59,7 +61,7 @@ learn, test, and change.
 
 | Project requirement | Implementation |
 |---|---|
-| Data ingestion and validation | `data.py`: Excel load, schema, missing, duplicate, binary, range, and category checks |
+| Data ingestion and validation | `data.py`: Excel/CSV load, schema, missing, duplicate, binary, range, and category checks |
 | Data cleaning and preparation | `data.py`: numeric conversion, category cleanup, invalid-target handling |
 | Geography, age, credit, tenure, and balance segments | `config.py` definitions and `prepare_data` derived fields |
 | Overall and segment churn | `overall_kpis` and `segment_summary` |
@@ -76,7 +78,7 @@ learn, test, and change.
 | Research paper | `reports/research_paper.md` |
 | EDA report | `reports/eda_report.md` and its generator script |
 | Executive summary | `reports/executive_summary.md` |
-| Streamlit application | `app.py` and `dashboard.py` |
+| Direct-load Streamlit application | `app.py`, `dashboard.py`, and the standardized data asset |
 
 ## 4. Set up the project in PyCharm
 
@@ -104,32 +106,44 @@ On Windows PowerShell, activate with:
 In **PyCharm → Settings → Project → Python Interpreter**, select the Python executable inside
 `.venv`.
 
-### Step 3: Keep the data private
+### Step 3: Understand the public-data boundary
 
-The application accepts the workbook through the upload control. For local scripts, the file may be
-kept under `data/raw/`, but `.gitignore` prevents Excel and CSV files from being published.
+The public application does not accept uploads. It uses
+`data/processed/european_bank_dashboard.csv.gz`, which is derived from the authorized workbook.
+During the build, original customer IDs become generated `DEMO-xxxxx` record IDs and surnames
+become `Anonymous`. Analytical variables remain available so the dashboard results are unchanged.
 
-Do not place the workbook inside source code and do not hard-code a personal absolute file path.
+The private workbook may be kept under `data/raw/` locally, where `.gitignore` prevents publication.
+Do not commit the source workbook or hard-code a personal absolute path in application code.
 
 ## 5. Implementation flow
 
 ```mermaid
 flowchart LR
-    A[Excel upload] --> B[Schema and quality validation]
-    B --> C[Type conversion and segment creation]
-    C --> D[KPIs and EDA]
-    C --> E[80/20 stratified split]
-    E --> F[Logistic Regression]
-    E --> G[Random Forest]
-    D --> H[Streamlit dashboard]
-    F --> H
-    G --> H
+    A[Private Excel source] --> B[Validate and de-identify]
+    B --> C[Bundled compressed dataset]
+    C --> D[Type conversion and segments]
+    D --> E[KPIs and EDA]
+    D --> F[80/20 stratified split]
+    F --> G[Logistic Regression]
+    F --> H[Random Forest]
+    E --> I[Direct-load Streamlit dashboard]
+    G --> I
+    H --> I
 ```
 
-### Step 1: Load the workbook
+### Step 1: Build and load the standardized dataset
 
-`data.py` uses `pandas.read_excel` to read the first worksheet. The source workbook is not changed.
-Streamlit passes the uploaded bytes to this function and caches the result for the same file.
+`scripts/build_dashboard_dataset.py` uses `pandas.read_excel` to read the first worksheet without
+changing it. It validates the schema, replaces direct identifiers, and writes a compressed CSV.
+`data.py` then loads that bundled asset automatically, and Streamlit caches it for the application
+process. Visitors do not select or upload a file.
+
+Maintainers can rebuild the asset from an authorized workbook with:
+
+```bash
+python scripts/build_dashboard_dataset.py "/full/path/to/European_Bank (5).xlsx"
+```
 
 ### Step 2: Validate before analyzing
 
@@ -294,30 +308,30 @@ Tests use synthetic data so private customer rows are never placed in the reposi
 streamlit run app.py
 ```
 
-Open the local address shown in the terminal, upload the workbook, inspect validation messages, and
-review each tab. In PyCharm, the equivalent command is:
+Open the local address shown in the terminal, inspect the validation details, and review each tab.
+The dashboard appears immediately without a file chooser. In PyCharm, the equivalent command is:
 
 ```bash
 python -m streamlit run app.py
 ```
 
-## 6. Manual GitHub upload
+## 6. GitHub and Streamlit deployment
 
-No GitHub upload or deployment is performed automatically. When ready to upload manually:
+When publishing the project:
 
 1. Extract the clean project ZIP.
 2. Open the target GitHub repository and select **Add file → Upload files**.
 3. Upload the project contents, including hidden `.github` and `.gitignore` files.
-4. Do not upload `.venv`, `.idea`, `.git`, cache folders, the Excel workbook, CSV exports, or model
-   files.
+4. Do not upload `.venv`, `.idea`, `.git`, cache folders, the Excel workbook, ordinary CSV exports,
+   or model files. Include only the approved compressed asset under `data/processed/`.
 5. Confirm that `app.py`, `requirements.txt`, `README.md`, `european_bank_churn/`, `tests/`,
    `docs/`, `reports/`, `notebooks/`, and `.github/` are visible.
 6. Use a clear commit message such as `Implement customer segmentation and churn analytics`.
 7. After upload, check the repository file list and GitHub Actions results.
 
-If Streamlit deployment is wanted later, select the uploaded repository, `main` branch, and
-`app.py` entrypoint in Streamlit Community Cloud. The application does not require a secret or a
-committed dataset.
+In Streamlit Community Cloud, select this repository, the `main` branch, and `app.py` as the
+entrypoint. The application requires no secret and opens directly using its bundled standardized
+dataset.
 
 ## 7. Common beginner mistakes
 
@@ -328,7 +342,7 @@ committed dataset.
 - Using accuracy as the only metric for an imbalanced target.
 - Treating Random Forest feature importance as proof of cause.
 - Calling customer balance “revenue at risk.”
-- Publishing customer-level workbooks or PyCharm virtual environments.
+- Publishing source workbooks, original direct identifiers, or PyCharm virtual environments.
 - Hard-coding a local file path inside `app.py`.
 
 ## 8. Recommended learning resources

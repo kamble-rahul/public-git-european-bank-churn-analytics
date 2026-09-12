@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from io import BytesIO
-
 import pandas as pd
 import streamlit as st
 
@@ -16,7 +14,7 @@ from .analytics import (
     segment_summary,
 )
 from .config import AGE_LABELS, SEGMENT_DIMENSIONS
-from .data import load_excel, prepare_data, validate_dataset
+from .data import DASHBOARD_DATA_PATH, load_dashboard_data, prepare_data, validate_dataset
 from .modeling import evaluate_probabilities, train_model_comparison
 from .visualization import (
     churn_bar,
@@ -34,9 +32,9 @@ st.set_page_config(
 
 
 @st.cache_data(show_spinner=False)
-def read_uploaded_file(file_bytes: bytes) -> pd.DataFrame:
-    """Read an uploaded workbook once per unique file."""
-    return load_excel(BytesIO(file_bytes))
+def read_standardized_data() -> pd.DataFrame:
+    """Read the bundled dashboard dataset once per application process."""
+    return load_dashboard_data()
 
 
 @st.cache_resource(show_spinner="Training Logistic Regression and Random Forest...")
@@ -203,6 +201,10 @@ def _render_high_value(
         width="stretch",
         hide_index=True,
     )
+    st.caption(
+        "CustomerId values are generated dashboard record IDs. Original customer names and "
+        "identifiers are not included in this public application."
+    )
     st.download_button(
         "Download filtered high-value customers",
         data=premium[columns].to_csv(index=False).encode("utf-8"),
@@ -307,23 +309,15 @@ def run_dashboard() -> None:
     """Render the complete Streamlit dashboard."""
     st.title("Customer Segmentation & Churn Pattern Analytics")
     st.caption(
-        "Upload the European bank workbook. The original file is read-only; "
-        "analysis happens in memory."
+        "Interactive analysis of the standardized European banking project dataset. "
+        "No file upload is required."
     )
 
-    uploaded = st.file_uploader("Upload the .xlsx dataset", type=["xlsx"])
-    if uploaded is None:
-        st.info("Choose European_Bank (5).xlsx to open the dashboard.")
-        st.markdown(
-            "The dashboard checks the schema, creates segment fields, calculates KPIs, "
-            "and optionally compares Logistic Regression with a Random Forest churn model."
-        )
-        st.stop()
-
     try:
-        raw = read_uploaded_file(uploaded.getvalue())
+        raw = read_standardized_data()
     except Exception as exc:
-        st.error(f"The workbook could not be read: {exc}")
+        st.error("The standardized dashboard dataset could not be loaded.")
+        st.caption(f"Expected application asset: {DASHBOARD_DATA_PATH.name}. Details: {exc}")
         st.stop()
 
     findings = validate_dataset(raw)

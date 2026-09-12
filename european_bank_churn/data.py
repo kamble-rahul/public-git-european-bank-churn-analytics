@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import BinaryIO
 
 import numpy as np
@@ -19,10 +20,36 @@ from .config import (
     TENURE_LABELS,
 )
 
+DASHBOARD_DATA_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "data"
+    / "processed"
+    / "european_bank_dashboard.csv.gz"
+)
 
-def load_excel(source: str | BinaryIO) -> pd.DataFrame:
+
+def load_excel(source: str | Path | BinaryIO) -> pd.DataFrame:
     """Load the first worksheet of an Excel workbook without modifying the source."""
     return pd.read_excel(source)
+
+
+def load_dashboard_data(path: str | Path = DASHBOARD_DATA_PATH) -> pd.DataFrame:
+    """Load the bundled, standardized dataset used by the public dashboard."""
+    return pd.read_csv(path)
+
+
+def standardize_for_dashboard(df: pd.DataFrame) -> pd.DataFrame:
+    """Replace direct identifiers while preserving analytical values and row order."""
+    missing_columns = REQUIRED_COLUMNS - set(df.columns)
+    if missing_columns:
+        raise ValueError(f"Missing required columns: {sorted(missing_columns)}")
+
+    standardized = df.copy()
+    standardized["CustomerId"] = [
+        f"DEMO-{row_number:05d}" for row_number in range(1, len(standardized) + 1)
+    ]
+    standardized["Surname"] = "Anonymous"
+    return standardized
 
 
 def _finding(level: str, message: str) -> dict[str, str]:

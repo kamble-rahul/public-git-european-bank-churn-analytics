@@ -1,4 +1,4 @@
-.PHONY: install install-dev run test lint quality smoke eda
+.PHONY: install install-dev run test lint quality smoke eda dataset
 
 install:
 	python -m pip install -r requirements.txt
@@ -22,3 +22,6 @@ smoke:
 
 eda:
 	python scripts/generate_eda_report.py "$(WORKBOOK)"
+
+dataset:
+	python scripts/build_dashboard_dataset.py "$(WORKBOOK)"

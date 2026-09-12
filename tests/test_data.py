@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from european_bank_churn.data import prepare_data, validate_dataset
+from european_bank_churn.data import (
+    prepare_data,
+    standardize_for_dashboard,
+    validate_dataset,
+)
 
 
 def test_valid_frame_has_no_validation_errors(customer_frame):
@@ -57,3 +61,16 @@ def test_all_zero_balances_are_handled(customer_frame):
     prepared, thresholds = prepare_data(zero_balance)
     assert thresholds["positive_balance_median"] == 0.0
     assert set(prepared["BalanceSegment"]) == {"Zero balance"}
+
+
+def test_dashboard_standardization_removes_direct_identifiers(customer_frame):
+    standardized = standardize_for_dashboard(customer_frame)
+
+    assert standardized["CustomerId"].tolist() == [
+        f"DEMO-{row_number:05d}" for row_number in range(1, len(customer_frame) + 1)
+    ]
+    assert standardized["CustomerId"].is_unique
+    assert set(standardized["Surname"]) == {"Anonymous"}
+    assert standardized["Exited"].equals(customer_frame["Exited"])
+    assert standardized["Balance"].equals(customer_frame["Balance"])
+    assert not set(customer_frame["Surname"]) & set(standardized["Surname"])

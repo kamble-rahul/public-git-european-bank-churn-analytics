@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0 — 2026-09-12
+
+- Removed the visitor-facing workbook upload step so the dashboard opens immediately.
+- Added a bundled, compressed dataset generated from the supplied project workbook.
+- Replaced original customer IDs and surnames before publication and documented the data boundary.
+- Added a reproducible dataset-build command and automated de-identification tests.
+
 ## 0.3.0 — 2026-09-12
 
 - Added a reproducible Markdown EDA report generated from the supplied workbook.

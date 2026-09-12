@@ -22,7 +22,8 @@ If customer-level banking data is committed or exposed:
 
 ## Deployment posture
 
-The public Streamlit app accepts `.xlsx` uploads and processes them in the running session. It does
-not intentionally persist files, but it is an educational demo rather than an audited data-processing
-system. Do not upload regulated or production customer information without formal authorization,
-security review, retention controls, and an approved processing agreement.
+The public Streamlit app does not accept file uploads. It loads only the bundled standardized
+dataset, whose original customer IDs and surnames have been replaced before publication. The
+private source workbook must never be committed or deployed. This remains an educational demo,
+not an audited banking system; do not publish regulated or production customer information without
+formal authorization, privacy review, security controls, and an approved processing agreement.

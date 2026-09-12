@@ -11,7 +11,7 @@ independent from the user interface.
 |---|---|---|
 | `app.py` | Streamlit Cloud entrypoint | Business rules or model code |
 | `dashboard.py` | Page layout, widgets, and session state | Hard-coded KPI calculations |
-| `data.py` | Excel ingestion, validation, type cleaning, segments | Streamlit widgets |
+| `data.py` | Excel/CSV ingestion, de-identification, validation, cleaning, segments | Streamlit widgets |
 | `analytics.py` | KPI denominators and grouped summaries | File or UI operations |
 | `modeling.py` | Train/test split, preprocessing, models, metrics | Customer identifiers |
 | `visualization.py` | Plotly figure construction | Data cleaning or model fitting |
@@ -19,13 +19,15 @@ independent from the user interface.
 
 ## Data flow
 
-1. A user uploads an Excel workbook through Streamlit.
-2. `load_excel` reads the first worksheet into memory.
-3. `validate_dataset` reports errors and warnings without silently changing rows.
-4. `prepare_data` converts numeric fields, keeps valid binary targets, and creates segments.
-5. `analytics.py` calculates KPIs on the current filtered population.
-6. If requested, `modeling.py` creates one stratified holdout split and fits two pipelines.
-7. The dashboard renders summaries and model diagnostics; it does not save the uploaded workbook.
+1. A maintainer runs `scripts/build_dashboard_dataset.py` against the authorized private workbook.
+2. The script validates the source and replaces original IDs and surnames.
+3. The compressed standardized dataset is bundled with the application.
+4. `load_dashboard_data` loads it automatically when Streamlit starts.
+5. `validate_dataset` reports errors and warnings without silently changing rows.
+6. `prepare_data` converts numeric fields, keeps valid binary targets, and creates segments.
+7. `analytics.py` calculates KPIs on the current filtered population.
+8. If requested, `modeling.py` creates one stratified holdout split and fits two pipelines.
+9. The dashboard renders summaries and model diagnostics without asking visitors for a file.
 
 ## Why a thin entrypoint matters
 
@@ -39,4 +41,5 @@ same analytics functions to be used by tests, notebooks, future APIs, or schedul
 - Entrypoint: `app.py`.
 - Runtime dependencies: `requirements.txt`.
 - No secret is required.
-- No dataset or serialized model is committed.
+- The de-identified compressed dashboard dataset is committed; the source workbook and serialized
+  models are not.

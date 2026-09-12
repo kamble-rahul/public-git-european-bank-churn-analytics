@@ -1,11 +1,11 @@
 # Data dictionary
 
-The first Excel worksheet must contain the following fields.
+The private source workbook and bundled standardized dataset use the following fields.
 
 | Column | Type | Meaning | Analytical use |
 |---|---|---|---|
-| `CustomerId` | Identifier | Unique customer identifier | Drill-down only; excluded from ML |
-| `Surname` | Text | Customer surname | Excluded from analysis and ML |
+| `CustomerId` | Identifier | Generated `DEMO-xxxxx` record ID in the public asset | Drill-down only; excluded from ML |
+| `Surname` | Text | `Anonymous` placeholder in the public asset | Excluded from analysis and ML |
 | `CreditScore` | Numeric | Creditworthiness score | Credit bands and ML feature |
 | `Geography` | Category | France, Germany, or Spain | Regional segmentation and ML feature |
 | `Gender` | Category | Female or Male in the supplied data | Fairness-sensitive analysis and ML feature |
@@ -32,5 +32,7 @@ useful predictive feature.
 
 ## Data protection
 
-Excel and CSV files are excluded by `.gitignore`. Keep authorized data in `data/raw/` locally and
-never commit names, identifiers, financial values, credentials, or unapproved model artifacts.
+The private Excel source and ordinary CSV exports are excluded by `.gitignore`. The sole exception
+is `data/processed/european_bank_dashboard.csv.gz`, built by the project's de-identification script.
+Keep authorized source data in `data/raw/` locally and never commit original names, original
+identifiers, credentials, or unapproved model artifacts.

@@ -7,10 +7,10 @@ An end-to-end portfolio project for validating customer data, creating business-
 segments, measuring churn patterns, comparing classification models, and presenting the
 results in an interactive Streamlit dashboard.
 
-> The customer-level workbook is deliberately excluded from GitHub. The application processes
-> an uploaded `.xlsx` file in memory. The supplied file does not contain authoritative provenance
-> proving that it came from the European Central Bank, so this project describes it as an
-> educational European banking dataset.
+> The public application automatically loads a standardized, de-identified copy of the supplied
+> project dataset. Original customer IDs and surnames are not published. The source workbook does
+> not contain authoritative provenance proving that it came from the European Central Bank, so
+> this project describes it as an educational European banking dataset.
 
 ## Business questions
 
@@ -32,6 +32,7 @@ results in an interactive Streamlit dashboard.
 - Compares Logistic Regression and Random Forest using ROC-AUC, PR-AUC, recall, precision,
   F1, accuracy, and a confusion matrix.
 - Allows the Random Forest decision threshold to be adjusted for campaign capacity.
+- Opens the complete dashboard immediately; visitors do not need to upload a file.
 
 ## Verified analytical highlights
 
@@ -55,7 +56,7 @@ proxy, not recognized revenue loss.
 ```text
 .
 ├── .github/                 # CI workflow, issue and pull-request templates
-├── data/                    # Empty raw/interim/processed folders; data is gitignored
+├── data/                    # Private raw folders plus the de-identified dashboard asset
 ├── docs/                    # Architecture, dictionary, methodology, and model card
 ├── european_bank_churn/     # Reusable production Python package
 │   ├── analytics.py         # KPI and segment calculations
@@ -105,7 +106,7 @@ Windows PowerShell activation:
 streamlit run app.py
 ```
 
-Upload a workbook containing the columns in [the data dictionary](docs/data_dictionary.md).
+The application opens directly with the bundled standardized dataset—no upload is required.
 
 ### 3. Run quality checks
 
@@ -121,6 +122,16 @@ To validate the real workbook locally without publishing it:
 python smoke_test.py "/full/path/to/European_Bank (5).xlsx"
 ```
 
+To rebuild the public, de-identified dashboard asset from an authorized source workbook:
+
+```bash
+python scripts/build_dashboard_dataset.py "/full/path/to/European_Bank (5).xlsx"
+```
+
+The build replaces every original `CustomerId` with a generated `DEMO-xxxxx` record ID and every
+surname with `Anonymous`, then verifies the row count and churn target before writing the compressed
+asset. Never commit the private source workbook.
+
 To regenerate the full Markdown EDA report from the workbook:
 
 ```bash
@@ -131,15 +142,16 @@ python scripts/generate_eda_report.py "/full/path/to/European_Bank (5).xlsx"
 
 ```mermaid
 flowchart LR
-    A[Private Excel upload] --> B[Schema and quality checks]
-    B --> C[Type cleaning and segment features]
-    C --> D[KPIs and EDA]
-    C --> E[Stratified train/test split]
-    E --> F[Logistic Regression]
-    E --> G[Random Forest]
-    D --> H[Streamlit dashboard]
-    F --> H
-    G --> H
+    A[Private source workbook] --> B[Validate and de-identify offline]
+    B --> C[Bundled standardized data]
+    C --> D[Type cleaning and segment features]
+    D --> E[KPIs and EDA]
+    D --> F[Stratified train/test split]
+    F --> G[Logistic Regression]
+    F --> H[Random Forest]
+    E --> I[Direct-load Streamlit dashboard]
+    G --> I
+    H --> I
 ```
 
 The required project is primarily segmentation and descriptive analytics. ML is a secondary
@@ -162,6 +174,8 @@ component used to rank churn risk, not a replacement for business KPI analysis.
 ## Reproducibility and automation
 
 - Segment thresholds and model settings are centralized in `config.py`.
+- The public dashboard data can be rebuilt deterministically with
+  `scripts/build_dashboard_dataset.py`.
 - The split is stratified and controlled by `random_state=42`.
 - Preprocessing and classifiers use scikit-learn `Pipeline` objects to reduce leakage risk.
 - Tests use synthetic records and verify KPI denominators, boundaries, edge cases, and model output.
