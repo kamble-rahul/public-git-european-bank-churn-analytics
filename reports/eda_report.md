@@ -7,7 +7,7 @@ It addresses the required customer-segmentation, churn-distribution, demographic
 financial-profile, high-value, and supervised-learning questions. Results describe associations in
 this educational dataset; they do not prove why a customer churned.
 
-- **Generated:** 2026-09-12
+- **Generated:** 2026-09-13
 - **Rows:** 10,000
 - **Columns in source:** 14
 - **Target:** `Exited` (`1` = churned, `0` = retained)
@@ -215,10 +215,10 @@ Logistic Regression also standardizes them. Geography and gender are imputed and
 Both classifiers use balanced class weights. Identifiers, surname, derived segments, and constant
 year are excluded from training.
 
-| Model | ROC-AUC | PR-AUC | Recall | Precision | F1 | Accuracy | Confusion matrix |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Logistic Regression | 0.777 | 0.468 | 70.02% | 38.72% | 0.499 | 71.35% | TN=1142, FP=451, FN=122, TP=285 |
-| Random Forest | 0.861 | 0.689 | 67.81% | 57.62% | 0.623 | 83.30% | TN=1390, FP=203, FN=131, TP=276 |
+| Model | ROC-AUC | PR-AUC | Recall | Precision | F1 | Accuracy | Brier score | Confusion matrix |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Logistic Regression | 0.777 | 0.468 | 70.02% | 38.72% | 0.499 | 71.35% | 0.194 | TN=1142, FP=451, FN=122, TP=285 |
+| Random Forest | 0.861 | 0.689 | 67.81% | 57.62% | 0.623 | 83.30% | 0.129 | TN=1390, FP=203, FN=131, TP=276 |
 
 Accuracy alone is not sufficient because the majority-class baseline is **79.63%**.
 Random Forest is the recommended demonstration model because it captures nonlinear patterns, while
@@ -242,9 +242,32 @@ decisions.
 | Gender_Male | 0.0143 |
 | Geography_Spain | 0.0102 |
 
-Feature importance describes model reliance, not causal influence. A production study should add
-cross-validation or temporal validation, probability calibration, fairness analysis, drift checks,
-and customer-contact cost assumptions.
+### Holdout permutation importance
+
+| Original feature | Mean PR-AUC decrease | Std. dev. |
+| --- | --- | --- |
+| Age | 0.2775 | 0.0131 |
+| NumOfProducts | 0.1921 | 0.0119 |
+| IsActiveMember | 0.0885 | 0.0124 |
+| Balance | 0.0547 | 0.0070 |
+| Geography | 0.0539 | 0.0099 |
+| Gender | 0.0086 | 0.0038 |
+| Tenure | 0.0050 | 0.0013 |
+| EstimatedSalary | 0.0000 | 0.0021 |
+| HasCrCard | -0.0020 | 0.0011 |
+| CreditScore | -0.0020 | 0.0011 |
+
+### Five-fold stratified validation
+
+| Model | Folds | ROC-AUC | PR-AUC | Recall | Precision | F1 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Logistic Regression | 5 | 0.769 ± 0.016 | 0.460 ± 0.031 | 0.691 ± 0.039 | 0.384 ± 0.012 | 0.493 ± 0.018 |
+| Random Forest | 5 | 0.861 ± 0.008 | 0.680 ± 0.019 | 0.670 ± 0.029 | 0.581 ± 0.025 | 0.622 ± 0.023 |
+
+The dashboard additionally provides probability calibration, customer-level Logistic Regression
+contributions, subgroup error metrics, and a retention ROI scenario. Importance describes model
+reliance, not causal influence. Temporal validation, drift monitoring, independent data, and causal
+campaign measurement remain unavailable in this snapshot.
 
 ## 10. Recommendations
 

@@ -39,6 +39,7 @@ de-identified compressed dataset automatically.
 │   ├── config.py                  # Columns, segment boundaries, and model settings
 │   ├── data.py                    # Excel ingestion, validation, and feature engineering
 │   ├── analytics.py               # KPI and grouped churn calculations
+│   ├── business.py                # Retention capacity and ROI scenario formulas
 │   ├── modeling.py                # Logistic Regression and Random Forest pipelines
 │   ├── visualization.py           # Plotly chart functions
 │   └── dashboard.py               # Streamlit layout, filters, tabs, and downloads
@@ -75,6 +76,10 @@ learn, test, and change.
 | Engagement indicator | inactive-to-active churn-risk ratio |
 | Segment filters and dynamic KPIs | sidebar filters applied before all descriptive calculations |
 | Drill-down and downloads | segment summary and high-value customer CSV downloads |
+| Cross-validation and calibration | five stratified folds, Brier score, reliability curve, and risk bands |
+| Explainability | holdout permutation importance, signed coefficients, and customer contributions |
+| Fairness screening | subgroup precision, recall, false-positive, and false-negative rates |
+| Retention ROI | `business.py` scenario formulas and capacity-ranked target list |
 | Research paper | `reports/research_paper.md` |
 | EDA report | `reports/eda_report.md` and its generator script |
 | Executive summary | `reports/executive_summary.md` |
@@ -261,6 +266,7 @@ Both models use balanced class weights because churners are the minority class.
 | F1 | Balance between precision and recall |
 | ROC-AUC | How well the model ranks churners above retained customers |
 | PR-AUC | Ranking quality focused on the minority churn class |
+| Brier score | Mean squared probability error; lower is better but not sufficient alone |
 | Accuracy | Share of all correct classifications; not sufficient by itself |
 | Confusion matrix | Counts of correct and incorrect retained/churned predictions |
 
@@ -268,9 +274,16 @@ The dashboard lets the user change the Random Forest probability threshold. Lowe
 find more churners but also flag more retained customers. A real threshold should use campaign
 capacity and the business costs of missed churners and unnecessary contacts.
 
+The Model validation tab adds five-fold stratified validation and reports mean plus standard
+deviation. Its calibration curve compares predicted probability with observed churn. Because Year
+is constant, temporal validation cannot be performed honestly with this dataset.
+
+The explainability tab uses permutation importance on unseen holdout records and signed Logistic
+Regression contributions. These describe model reliance and association, not causation.
+
 ### Step 10: Build the Streamlit interface
 
-`dashboard.py` provides five tabs:
+`dashboard.py` provides eight tabs:
 
 1. **Overview**: customer count, churn, high-value churn, engagement risk, country chart, and
    geographic risk index.
@@ -280,6 +293,12 @@ capacity and the business costs of missed churners and unnecessary contacts.
    salary-balance plot, customer drill-down, and CSV download.
 5. **ML model comparison**: model table, threshold control, confusion matrix, and feature
    importance.
+6. **Model validation**: calibration curve, Brier score, risk bands, five-fold results, and model
+   metadata.
+7. **Explainability & fairness**: permutation importance, signed coefficients, customer-level
+   contributions, illustrative actions, and subgroup error metrics.
+8. **Retention ROI**: campaign capacity, cost, success, retained-value assumptions, expected
+   outcomes, and downloadable target list.
 
 Sidebar filters cover geography, gender, age, tenure, credit score, balance, activity, and product
 count. Every KPI and chart recalculates on the filtered population.
@@ -300,7 +319,8 @@ Run the end-to-end workbook check:
 python smoke_test.py "/full/path/to/European_Bank (5).xlsx"
 ```
 
-Tests use synthetic data so private customer rows are never placed in the repository.
+Tests use synthetic data and cover validation, segmentation, KPIs, model output, cross-validation,
+calibration, explanations, subgroup metrics, dashboard rendering, and ROI formulas.
 
 ### Step 12: Run the application
 

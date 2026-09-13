@@ -76,6 +76,71 @@ def feature_importance_figure(importances: pd.DataFrame) -> go.Figure:
     )
 
 
+def permutation_importance_figure(importances: pd.DataFrame) -> go.Figure:
+    """Show holdout permutation importance using PR-AUC degradation."""
+    top_features = importances.head(15).sort_values("ImportanceMean")
+    figure = px.bar(
+        top_features,
+        x="ImportanceMean",
+        y="Feature",
+        error_x="ImportanceStd",
+        orientation="h",
+        title="Holdout permutation importance (PR-AUC decrease)",
+    )
+    figure.update_xaxes(title="Mean PR-AUC decrease when shuffled")
+    return figure
+
+
+def logistic_coefficient_figure(coefficients: pd.DataFrame) -> go.Figure:
+    """Show the strongest positive and negative logistic coefficients."""
+    strongest = coefficients.head(15).sort_values("Coefficient")
+    figure = px.bar(
+        strongest,
+        x="Coefficient",
+        y="Feature",
+        color="Direction",
+        orientation="h",
+        color_discrete_map={
+            "Higher predicted churn": "#D62728",
+            "Lower predicted churn": "#2CA02C",
+        },
+        title="Logistic Regression direction of association",
+    )
+    figure.update_xaxes(title="Standardized log-odds coefficient")
+    return figure
+
+
+def calibration_figure(curves: dict[str, pd.DataFrame]) -> go.Figure:
+    """Compare predicted churn probability with observed churn frequency."""
+    figure = go.Figure()
+    figure.add_trace(
+        go.Scatter(
+            x=[0, 1],
+            y=[0, 1],
+            mode="lines",
+            name="Perfect calibration",
+            line={"color": "#777777", "dash": "dash"},
+        )
+    )
+    for model_name, table in curves.items():
+        figure.add_trace(
+            go.Scatter(
+                x=table["MeanPredictedProbability"],
+                y=table["ObservedChurnRate"],
+                mode="lines+markers",
+                name=model_name,
+            )
+        )
+    figure.update_layout(
+        title="Probability calibration on the holdout set",
+        xaxis_title="Mean predicted churn probability",
+        yaxis_title="Observed churn rate",
+        xaxis={"tickformat": ".0%", "range": [0, 1]},
+        yaxis={"tickformat": ".0%", "range": [0, 1]},
+    )
+    return figure
+
+
 def salary_balance_scatter(df: pd.DataFrame) -> go.Figure:
     """Compare salary and balance while making churn and geography visible."""
     chart_data = df.copy()

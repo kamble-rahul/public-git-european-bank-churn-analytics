@@ -34,6 +34,13 @@ The supplied snapshot contains 10,000 customers, including 2,037 recorded exits.
 5. Monitor campaign lift, incremental retained customers, cost, complaints, and fairness—not only
    model accuracy.
 
+## Model assurance and scenario planning
+
+Five-fold validation produces Random Forest ROC-AUC of 0.861 ± 0.008 and PR-AUC of 0.680 ± 0.019.
+The dashboard also compares probability calibration, reports subgroup error rates, and explains
+global and individual model behavior. A capacity-based ROI simulator lets decision-makers vary
+contact cost, retention success, and customer value; its outputs are scenarios, not bank forecasts.
+
 ## Governance requirements
 
 - Confirm the dataset owner, collection purpose, lawful basis, retention period, and geographic

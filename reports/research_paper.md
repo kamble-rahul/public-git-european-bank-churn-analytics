@@ -116,8 +116,20 @@ customer as retained already yields 79.63% accuracy.
 Logistic Regression remains valuable even when Random Forest ranks better: its standardized
 coefficients provide a simpler baseline, expose unexpected directional relationships, and help
 identify leakage or data-quality errors. Random Forest feature importance shows model reliance, not
-causation. A production evaluation should add repeated or temporal validation, calibration, segment
-error analysis, confidence intervals, stability testing, and comparison with a no-model campaign.
+causation. A production evaluation should add temporal or independent validation, calibrated
+probability correction, confidence intervals, stability monitoring, and comparison with a no-model
+campaign.
+
+The enhanced application adds five-fold stratified validation. Random Forest records mean ROC-AUC
+of 0.861 ± 0.008 and mean PR-AUC of 0.680 ± 0.019, indicating relatively stable ranking across
+folds. On the fixed holdout, its Brier score is 0.129 versus 0.194 for Logistic Regression. A
+reliability curve is still required alongside Brier score because probability error combines
+calibration and discrimination.
+
+Holdout permutation importance, signed Logistic Regression coefficients, customer-level
+contributions, and subgroup error tables improve transparency. The retention ROI simulator connects
+campaign capacity to cost and expected value, but every financial input is an explicit scenario
+assumption rather than measured revenue or causal impact.
 
 ## 7. Recommendations
 

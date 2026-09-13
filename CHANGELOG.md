@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0 — 2026-09-13
+
+- Added five-fold stratified validation with mean and variability for five classification metrics.
+- Added calibration curves, Brier scores, and predicted-versus-observed risk bands.
+- Added holdout permutation importance and signed Logistic Regression explanations.
+- Added customer-level explanations using generated dashboard record IDs.
+- Added subgroup performance auditing for gender, geography, and age bands.
+- Added a capacity-based retention ROI simulator with explicit user assumptions.
+- Added model versioning, dataset fingerprints, and expanded automated tests.
+
 ## 0.4.0 — 2026-09-12
 
 - Removed the visitor-facing workbook upload step so the dashboard opens immediately.

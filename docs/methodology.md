@@ -61,8 +61,48 @@ nonlinear comparison model.
 8. Select a decision threshold from campaign capacity and the relative cost of false negatives and
    false positives—not from accuracy alone.
 
-## 7. Quality assurance
+## 7. Robustness and calibration
+
+The dashboard supplements the fixed 80/20 holdout with five-fold `StratifiedKFold` validation.
+Each fold preserves approximately the same churn class balance. ROC-AUC, PR-AUC, recall, precision,
+and F1 are reported as a mean and standard deviation so one favorable split is not mistaken for
+stable performance.
+
+Probability quality is inspected with ten quantile-based calibration bins and Brier score. The
+calibration curve compares average predicted churn probability with observed churn. Brier score is
+the mean squared probability error; lower is better, but it is not a complete calibration measure
+by itself.
+
+## 8. Explainability and subgroup review
+
+- Random Forest permutation importance is calculated on the unseen holdout set using PR-AUC. It
+  measures the performance reduction after shuffling one original feature.
+- Signed standardized Logistic Regression coefficients show whether a feature is associated with
+  higher or lower predicted churn.
+- Customer-level Logistic Regression contributions explain the fitted log-odds for one generated
+  dashboard record ID.
+- Subgroup tables compare actual churn, predicted high-risk rate, precision, recall,
+  false-positive rate, and false-negative rate across gender, geography, or age groups.
+
+None of these measures proves causation or establishes legal fairness. They are diagnostic inputs
+for human review.
+
+## 9. Retention scenario formulas
+
+```text
+Expected churners reached   = sum(predicted churn probability for selected targets)
+Expected customers retained = expected churners reached × assumed success rate
+Campaign cost               = customers targeted × assumed contact cost
+Estimated value protected   = expected customers retained × assumed retained value
+Estimated net benefit       = estimated value protected − campaign cost
+Estimated ROI               = estimated net benefit / campaign cost
+```
+
+All cost, success, and value inputs are user assumptions. The results are scenarios, not observed
+revenue, because the dataset has no campaign-treatment, margin, fee, or lifetime-value fields.
+
+## 10. Quality assurance
 
 Synthetic tests check schema errors, binary consistency, band boundaries, all-zero balances, KPI
-denominators, segment reconciliation, model outputs, and threshold validation. GitHub Actions runs
-the checks on Python 3.11 and 3.12.
+denominators, segment reconciliation, model outputs, threshold validation, calibration, subgroup
+metrics, explanations, and ROI formulas. GitHub Actions runs the checks on Python 3.11 and 3.12.

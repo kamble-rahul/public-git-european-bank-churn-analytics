@@ -19,6 +19,8 @@ results in an interactive Streamlit dashboard.
    highest churn rate and churn contribution?
 3. Is churn concentrated among high-balance customers?
 4. How do an explainable Logistic Regression baseline and a nonlinear Random Forest compare?
+5. Are model results stable, calibrated, and consistent across customer groups?
+6. What could a capacity-constrained retention campaign deliver under explicit assumptions?
 
 ## Product capabilities
 
@@ -32,6 +34,12 @@ results in an interactive Streamlit dashboard.
 - Compares Logistic Regression and Random Forest using ROC-AUC, PR-AUC, recall, precision,
   F1, accuracy, and a confusion matrix.
 - Allows the Random Forest decision threshold to be adjusted for campaign capacity.
+- Adds five-fold stratified validation with mean and standard deviation for key metrics.
+- Compares predicted probabilities with observed churn using calibration curves and Brier score.
+- Uses holdout permutation importance plus signed Logistic Regression coefficients.
+- Provides customer-level explanations using generated dashboard IDs.
+- Audits precision, recall, false-positive rate, and false-negative rate by customer group.
+- Simulates campaign cost, expected retained customers, protected value, net benefit, and ROI.
 - Opens the complete dashboard immediately; visitors do not need to upload a file.
 
 ## Verified analytical highlights
@@ -51,6 +59,16 @@ Using the supplied 10,000-row workbook and the documented segment rules:
 These values are descriptive associations, not causal effects. `Balance at risk` is an exposure
 proxy, not recognized revenue loss.
 
+### Verified model robustness
+
+| Model | Five-fold ROC-AUC | Five-fold PR-AUC | Holdout Brier score |
+|---|---:|---:|---:|
+| Logistic Regression | 0.769 ± 0.016 | 0.460 ± 0.031 | 0.194 |
+| Random Forest | 0.861 ± 0.008 | 0.680 ± 0.019 | 0.129 |
+
+Five-fold values are mean ± standard deviation. Brier score is probability error, where lower is
+better, but it must be interpreted together with the calibration curve and ranking metrics.
+
 ## Repository structure
 
 ```text
@@ -60,6 +78,7 @@ proxy, not recognized revenue loss.
 ├── docs/                    # Architecture, dictionary, methodology, and model card
 ├── european_bank_churn/     # Reusable production Python package
 │   ├── analytics.py         # KPI and segment calculations
+│   ├── business.py          # Transparent retention scenario calculations
 │   ├── config.py            # Schema, band definitions, and model settings
 │   ├── dashboard.py         # Streamlit page composition
 │   ├── data.py              # Ingestion, validation, and feature engineering
@@ -152,6 +171,8 @@ flowchart LR
     E --> I[Direct-load Streamlit dashboard]
     G --> I
     H --> I
+    I --> J[Calibration, explainability and fairness]
+    I --> K[Retention ROI scenario]
 ```
 
 The required project is primarily segmentation and descriptive analytics. ML is a secondary
@@ -177,8 +198,11 @@ component used to rank churn risk, not a replacement for business KPI analysis.
 - The public dashboard data can be rebuilt deterministically with
   `scripts/build_dashboard_dataset.py`.
 - The split is stratified and controlled by `random_state=42`.
+- Five-fold stratified validation reports both average performance and variability.
+- Model metadata includes a semantic model version and dataset fingerprint.
 - Preprocessing and classifiers use scikit-learn `Pipeline` objects to reduce leakage risk.
-- Tests use synthetic records and verify KPI denominators, boundaries, edge cases, and model output.
+- Tests use synthetic records and verify KPI denominators, boundaries, model output, calibration,
+  subgroup metrics, explanations, and ROI formulas.
 - GitHub Actions runs linting, tests, coverage, and compilation on Python 3.11 and 3.12.
 
 ## Responsible use

@@ -13,7 +13,8 @@ independent from the user interface.
 | `dashboard.py` | Page layout, widgets, and session state | Hard-coded KPI calculations |
 | `data.py` | Excel/CSV ingestion, de-identification, validation, cleaning, segments | Streamlit widgets |
 | `analytics.py` | KPI denominators and grouped summaries | File or UI operations |
-| `modeling.py` | Train/test split, preprocessing, models, metrics | Customer identifiers |
+| `modeling.py` | Splits, pipelines, validation, calibration, explanations, subgroup metrics | Customer identifiers as features |
+| `business.py` | Capacity-based retention scenario and ROI formulas | Claims of actual revenue impact |
 | `visualization.py` | Plotly figure construction | Data cleaning or model fitting |
 | `tests/` | Synthetic verification of analytical contracts | Real customer records |
 
@@ -27,7 +28,10 @@ independent from the user interface.
 6. `prepare_data` converts numeric fields, keeps valid binary targets, and creates segments.
 7. `analytics.py` calculates KPIs on the current filtered population.
 8. If requested, `modeling.py` creates one stratified holdout split and fits two pipelines.
-9. The dashboard renders summaries and model diagnostics without asking visitors for a file.
+9. Advanced validation adds five stratified folds, calibration, permutation importance, local
+   Logistic Regression contributions, and subgroup error-rate comparisons.
+10. `business.py` ranks held-out customers and applies only user-entered campaign assumptions.
+11. The dashboard renders summaries and model diagnostics without asking visitors for a file.
 
 ## Why a thin entrypoint matters
 
@@ -41,5 +45,6 @@ same analytics functions to be used by tests, notebooks, future APIs, or schedul
 - Entrypoint: `app.py`.
 - Runtime dependencies: `requirements.txt`.
 - No secret is required.
+- Model version: `1.1.0`; each run also records a dataset fingerprint and random seed.
 - The de-identified compressed dashboard dataset is committed; the source workbook and serialized
   models are not.

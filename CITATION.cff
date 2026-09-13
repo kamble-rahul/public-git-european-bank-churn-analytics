@@ -7,5 +7,5 @@ authors:
     given-names: Rahul
 repository-code: "https://github.com/kamble-rahul/public-git-european-bank-churn-analytics"
 url: "https://rahul-european-bank-churn-analytics.streamlit.app"
-version: 0.4.0
-date-released: 2026-09-12
+version: 0.5.0
+date-released: 2026-09-13

@@ -23,6 +23,7 @@ from european_bank_churn.analytics import (  # noqa: E402
 from european_bank_churn.config import NUMERIC_FEATURES, REQUIRED_COLUMNS  # noqa: E402
 from european_bank_churn.data import load_excel, prepare_data, validate_dataset  # noqa: E402
 from european_bank_churn.modeling import (  # noqa: E402
+    cross_validate_models,
     evaluate_probabilities,
     train_model_comparison,
 )
@@ -118,6 +119,7 @@ def _model_rows(model_result: dict) -> tuple[list[list[object]], dict, dict]:
                 _percent(metrics["precision"]),
                 f"{metrics['f1']:.3f}",
                 _percent(metrics["accuracy"]),
+                f"{metrics['brier_score']:.3f}",
                 f"TN={tn}, FP={fp}, FN={fn}, TP={tp}",
             ]
         )
@@ -197,10 +199,31 @@ def build_report(workbook_path: Path) -> str:
     correlation_rows = [[feature, f"{value:+.3f}"] for feature, value in correlations.items()]
 
     model_result = train_model_comparison(data)
+    validation = cross_validate_models(data)
     model_rows, logistic_metrics, forest_metrics = _model_rows(model_result)
     importance_rows = [
         [_clean_feature_name(row["Feature"]), f"{row['Importance']:.4f}"]
         for _, row in model_result["feature_importances"].head(12).iterrows()
+    ]
+    permutation_rows = [
+        [
+            row["Feature"],
+            f"{row['ImportanceMean']:.4f}",
+            f"{row['ImportanceStd']:.4f}",
+        ]
+        for _, row in model_result["permutation_importances"].iterrows()
+    ]
+    validation_rows = [
+        [
+            row["Model"],
+            int(row["Folds"]),
+            f"{row['ROC-AUCMean']:.3f} ± {row['ROC-AUCStd']:.3f}",
+            f"{row['PR-AUCMean']:.3f} ± {row['PR-AUCStd']:.3f}",
+            f"{row['RecallMean']:.3f} ± {row['RecallStd']:.3f}",
+            f"{row['PrecisionMean']:.3f} ± {row['PrecisionStd']:.3f}",
+            f"{row['F1Mean']:.3f} ± {row['F1Std']:.3f}",
+        ]
+        for _, row in validation.iterrows()
     ]
 
     geography_rows = []
@@ -328,11 +351,19 @@ def build_report(workbook_path: Path) -> str:
             "Precision",
             "F1",
             "Accuracy",
+            "Brier score",
             "Confusion matrix",
         ],
         model_rows,
     )
     importance_table = _table(["Feature", "Importance"], importance_rows)
+    permutation_table = _table(
+        ["Original feature", "Mean PR-AUC decrease", "Std. dev."], permutation_rows
+    )
+    validation_table = _table(
+        ["Model", "Folds", "ROC-AUC", "PR-AUC", "Recall", "Precision", "F1"],
+        validation_rows,
+    )
     majority_baseline = _percent(retained / len(data))
 
     return f"""# Exploratory Data Analysis: European Bank Customer Churn
@@ -482,9 +513,18 @@ decisions.
 
 {importance_table}
 
-Feature importance describes model reliance, not causal influence. A production study should add
-cross-validation or temporal validation, probability calibration, fairness analysis, drift checks,
-and customer-contact cost assumptions.
+### Holdout permutation importance
+
+{permutation_table}
+
+### Five-fold stratified validation
+
+{validation_table}
+
+The dashboard additionally provides probability calibration, customer-level Logistic Regression
+contributions, subgroup error metrics, and a retention ROI scenario. Importance describes model
+reliance, not causal influence. Temporal validation, drift monitoring, independent data, and causal
+campaign measurement remain unavailable in this snapshot.
 
 ## 10. Recommendations
 

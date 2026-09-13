@@ -8,7 +8,8 @@
 | Target | `Exited = 1` | `Exited = 1` |
 | Class handling | Balanced weights | Balanced weights |
 | Output | Churn probability | Churn probability |
-| Interpretation | Coefficients after preprocessing | Impurity-based feature importance |
+| Interpretation | Signed coefficients and local contributions | Holdout permutation and impurity importance |
+| Model version | 1.1.0 | 1.1.0 |
 
 ## Intended use
 
@@ -35,16 +36,23 @@ ranking over both classes; PR-AUC emphasizes the churn class; recall measures th
 churners found; precision measures how many flagged customers actually churned; F1 balances recall
 and precision.
 
-The dashboard evaluates the final models on one stratified holdout set. A production project should
-add cross-validation, probability calibration, temporal validation, confidence intervals, and a
-champion/challenger process.
+The dashboard evaluates the final models on one stratified holdout set and five stratified folds.
+It reports calibration curves, Brier score, mean fold performance, and fold variability. The
+Random Forest achieved five-fold ROC-AUC `0.861 ± 0.008` and PR-AUC `0.680 ± 0.019` on the supplied
+snapshot. Each run exposes the model version, random seed, row counts, and a short dataset
+fingerprint.
+
+A production project should still add temporal validation, calibrated probability correction,
+confidence intervals, independent validation data, and a champion/challenger approval process.
 
 ## Fairness and risk
 
 Gender and geography are included in the educational comparison because the project explicitly asks
-for demographic and regional patterns. Before operational use, compare performance and error rates
-across groups, evaluate whether sensitive or proxy variables should be removed, and document the
-legal basis for each feature.
+for demographic and regional patterns. The dashboard compares predicted high-risk rate, precision,
+recall, false-positive rate, and false-negative rate across gender, geography, and age groups.
+Differences are screening signals, not a declaration that the model is fair. Before operational
+use, evaluate whether sensitive or proxy variables should be removed and document the legal basis
+for each feature.
 
 Feature importance is not causal explanation. A high importance value means the fitted model used a
 feature to split records; it does not prove that changing the feature changes churn.
@@ -55,4 +63,6 @@ feature to split records; it does not prove that changing the feature changes ch
 - No stated reason for exit or campaign-treatment history.
 - No authoritative dataset provenance in the workbook.
 - No revenue, margin, fees, or customer-lifetime-value fields.
-- No drift, calibration, latency, or fairness monitoring in the demo.
+- No temporal drift, latency, treatment-effect, or outcome monitoring in the demo.
+- Calibration is diagnosed but probabilities are not automatically recalibrated.
+- ROI outputs depend on user assumptions and are not recognized revenue or causal estimates.

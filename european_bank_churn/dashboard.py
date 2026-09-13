@@ -13,14 +13,25 @@ from .analytics import (
     profile_comparison,
     segment_summary,
 )
+from .business import simulate_retention_campaign
 from .config import AGE_LABELS, SEGMENT_DIMENSIONS
 from .data import DASHBOARD_DATA_PATH, load_dashboard_data, prepare_data, validate_dataset
-from .modeling import evaluate_probabilities, train_model_comparison
+from .modeling import (
+    calibration_table,
+    cross_validate_models,
+    evaluate_probabilities,
+    explain_logistic_customer,
+    subgroup_performance,
+    train_model_comparison,
+)
 from .visualization import (
+    calibration_figure,
     churn_bar,
     confusion_matrix_figure,
     feature_importance_figure,
     geography_age_heatmap,
+    logistic_coefficient_figure,
+    permutation_importance_figure,
     salary_balance_scatter,
 )
 
@@ -41,6 +52,21 @@ def read_standardized_data() -> pd.DataFrame:
 def fit_models(data: pd.DataFrame) -> dict:
     """Cache trained models for an unchanged prepared dataset."""
     return train_model_comparison(data)
+
+
+@st.cache_data(show_spinner="Running five-fold stratified cross-validation...")
+def validate_models(data: pd.DataFrame) -> pd.DataFrame:
+    """Cache expensive cross-validation results for an unchanged dataset."""
+    return cross_validate_models(data)
+
+
+def _require_model_result(data: pd.DataFrame, button_key: str) -> dict | None:
+    """Provide one consistent model-training gate across advanced dashboard tabs."""
+    if "model_result" not in st.session_state:
+        st.info("Train the models once to unlock validation, explanations, fairness, and ROI.")
+        if st.button("Train models and unlock advanced analysis", key=button_key, type="primary"):
+            st.session_state["model_result"] = fit_models(data)
+    return st.session_state.get("model_result")
 
 
 def _render_overview(
@@ -223,13 +249,10 @@ def _render_model_comparison(data: pd.DataFrame) -> None:
         "CustomerId, Surname, and the constant Year field are deliberately excluded "
         "from training."
     )
-    if st.button("Train and compare models", type="primary"):
-        st.session_state["model_result"] = fit_models(data)
-
-    if "model_result" not in st.session_state:
+    model_result = _require_model_result(data, "train_models_comparison")
+    if model_result is None:
         return
 
-    model_result = st.session_state["model_result"]
     comparison_rows = []
     for model_name, probability_key in [
         ("Logistic Regression", "logistic_probabilities"),
@@ -249,6 +272,7 @@ def _render_model_comparison(data: pd.DataFrame) -> None:
                 "Precision": model_metrics["precision"],
                 "F1": model_metrics["f1"],
                 "Accuracy": model_metrics["accuracy"],
+                "Brier score": model_metrics["brier_score"],
             }
         )
     comparison = pd.DataFrame(comparison_rows)
@@ -262,6 +286,7 @@ def _render_model_comparison(data: pd.DataFrame) -> None:
                 "Precision": "{:.1%}",
                 "F1": "{:.3f}",
                 "Accuracy": "{:.1%}",
+                "Brier score": "{:.3f}",
             }
         ),
         width="stretch",
@@ -300,8 +325,307 @@ def _render_model_comparison(data: pd.DataFrame) -> None:
         width="stretch",
     )
     st.warning(
-        "Feature importance shows model reliance, not causation. Before real banking use, "
-        "test calibration, drift, privacy, and performance across demographic groups."
+        "Feature importance shows model reliance, not causation. Use the validation and "
+        "explainability tabs for stronger diagnostics before interpreting the model."
+    )
+
+
+def _render_model_validation(data: pd.DataFrame) -> None:
+    st.subheader("Model robustness and probability calibration")
+    st.write(
+        "Holdout metrics measure one unseen sample. Five-fold validation checks whether model "
+        "quality is stable across multiple class-balanced splits."
+    )
+    model_result = _require_model_result(data, "train_models_validation")
+    if model_result is None:
+        return
+
+    y_test = model_result["y_test"]
+    curves = {
+        "Logistic Regression": calibration_table(
+            y_test, model_result["logistic_probabilities"]
+        ),
+        "Random Forest": calibration_table(
+            y_test, model_result["random_forest_probabilities"]
+        ),
+    }
+    logistic_metrics = evaluate_probabilities(
+        y_test, model_result["logistic_probabilities"]
+    )
+    forest_metrics = evaluate_probabilities(
+        y_test, model_result["random_forest_probabilities"]
+    )
+    c1, c2 = st.columns(2)
+    c1.metric("Logistic Brier score", f"{logistic_metrics['brier_score']:.3f}")
+    c2.metric("Random Forest Brier score", f"{forest_metrics['brier_score']:.3f}")
+    st.caption(
+        "Brier score measures probability error; lower is better. Always read it together "
+        "with the reliability curve and ranking metrics."
+    )
+    st.plotly_chart(calibration_figure(curves), width="stretch")
+
+    risk_bands = model_result["test_records"].copy()
+    risk_bands["RiskBand"] = pd.cut(
+        risk_bands["RandomForestProbability"],
+        bins=[-float("inf"), 0.30, 0.60, float("inf")],
+        labels=["Low (<30%)", "Medium (30-59%)", "High (60%+)"],
+        include_lowest=True,
+        right=False,
+    )
+    band_summary = (
+        risk_bands.groupby("RiskBand", observed=True)
+        .agg(
+            Customers=("CustomerId", "size"),
+            MeanPredictedProbability=("RandomForestProbability", "mean"),
+            ObservedChurnRate=("ActualExited", "mean"),
+        )
+        .reset_index()
+    )
+    st.subheader("Random Forest risk bands")
+    st.dataframe(
+        band_summary.style.format(
+            {
+                "MeanPredictedProbability": "{:.1%}",
+                "ObservedChurnRate": "{:.1%}",
+            }
+        ),
+        width="stretch",
+        hide_index=True,
+    )
+
+    if st.button("Run five-fold cross-validation", key="run_cross_validation"):
+        st.session_state["cross_validation"] = validate_models(data)
+    if "cross_validation" in st.session_state:
+        validation = st.session_state["cross_validation"]
+        percentage_columns = [
+            column for column in validation.columns if column not in {"Model", "Folds"}
+        ]
+        st.subheader("Five-fold validation results")
+        st.dataframe(
+            validation.style.format({column: "{:.3f}" for column in percentage_columns}),
+            width="stretch",
+            hide_index=True,
+        )
+        st.caption(
+            "Mean measures average fold performance; standard deviation shows variability. "
+            "Temporal validation is not possible because the supplied Year field is constant."
+        )
+
+    with st.expander("Model and dataset version", expanded=False):
+        metadata = model_result["metadata"]
+        st.json(
+            {
+                "model_version": metadata["model_version"],
+                "dataset_fingerprint": metadata["dataset_fingerprint"],
+                "random_state": metadata["random_state"],
+                "training_rows": metadata["training_rows"],
+                "holdout_rows": metadata["test_rows"],
+            }
+        )
+
+
+def _render_explainability_and_fairness(data: pd.DataFrame) -> None:
+    st.subheader("Model explainability")
+    st.write(
+        "Permutation importance tests the Random Forest on unseen rows. Logistic coefficients "
+        "add direction, showing associations with higher or lower predicted churn."
+    )
+    model_result = _require_model_result(data, "train_models_explainability")
+    if model_result is None:
+        return
+
+    st.plotly_chart(
+        permutation_importance_figure(model_result["permutation_importances"]),
+        width="stretch",
+    )
+    st.plotly_chart(
+        logistic_coefficient_figure(model_result["logistic_coefficients"]),
+        width="stretch",
+    )
+    st.caption(
+        "These are predictive associations, not proof that changing a feature will prevent churn."
+    )
+
+    st.subheader("Customer-level explanation")
+    records = model_result["test_records"]
+    customer_id = st.selectbox(
+        "Select a generated dashboard record ID",
+        records["CustomerId"].astype(str).sort_values().tolist(),
+        key="explanation_customer",
+    )
+    customer = records[records["CustomerId"].astype(str).eq(customer_id)].head(1)
+    probability = float(customer["RandomForestProbability"].iloc[0])
+    logistic_probability = float(customer["LogisticProbability"].iloc[0])
+    risk_label = "High" if probability >= 0.60 else "Medium" if probability >= 0.30 else "Low"
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Random Forest probability", f"{probability:.1%}")
+    c2.metric("Logistic probability", f"{logistic_probability:.1%}")
+    c3.metric("Random Forest risk band", risk_label)
+    c4.metric(
+        "Observed outcome",
+        "Churned" if int(customer["ActualExited"].iloc[0]) else "Retained",
+    )
+    explanation = explain_logistic_customer(
+        model_result["logistic_pipeline"], customer
+    ).head(10)
+    st.dataframe(
+        explanation.style.format({"Contribution": "{:+.3f}"}),
+        width="stretch",
+        hide_index=True,
+    )
+    st.caption(
+        "The signed contribution table explains the Logistic Regression probability. The Random "
+        "Forest probability is shown separately because its behavior is nonlinear."
+    )
+
+    actions = []
+    if int(customer["IsActiveMember"].iloc[0]) == 0:
+        actions.append("Offer a reviewed re-engagement conversation; the account is inactive.")
+    if int(customer["NumOfProducts"].iloc[0]) == 1:
+        actions.append("Review whether a relevant additional product could improve engagement.")
+    if float(customer["Balance"].iloc[0]) >= float(data["Balance"].quantile(0.75)):
+        actions.append("Prioritize a relationship-manager review because the balance is high.")
+    if not actions:
+        actions.append("Collect feedback before choosing a retention treatment.")
+    st.write("Illustrative reviewed actions:")
+    for action in actions:
+        st.markdown(f"- {action}")
+
+    st.subheader("Subgroup performance audit")
+    group_label = st.selectbox(
+        "Audit model outcomes by",
+        ["Gender", "Geography", "Age group"],
+        key="fairness_group",
+    )
+    group_column = {
+        "Gender": "Gender",
+        "Geography": "Geography",
+        "Age group": "AgeGroup",
+    }[group_label]
+    fairness_threshold = st.slider(
+        "Fairness-audit decision threshold",
+        min_value=0.10,
+        max_value=0.90,
+        value=0.50,
+        step=0.05,
+        key="fairness_threshold",
+    )
+    audit = subgroup_performance(
+        model_result["y_test"],
+        model_result["random_forest_probabilities"],
+        records[group_column],
+        fairness_threshold,
+    )
+    rate_columns = [
+        "ActualChurnRate",
+        "PredictedHighRiskRate",
+        "Precision",
+        "Recall",
+        "FalsePositiveRate",
+        "FalseNegativeRate",
+    ]
+    st.dataframe(
+        audit.style.format({column: "{:.1%}" for column in rate_columns}),
+        width="stretch",
+        hide_index=True,
+    )
+    st.warning(
+        "Different subgroup metrics are a screening signal, not a legal fairness conclusion. "
+        "Review sample sizes, confidence intervals, feature necessity, and applicable policy."
+    )
+
+
+def _render_retention_roi(data: pd.DataFrame) -> None:
+    st.subheader("Retention campaign ROI simulator")
+    st.write(
+        "Rank held-out customers by predicted churn risk and test transparent campaign assumptions."
+    )
+    model_result = _require_model_result(data, "train_models_roi")
+    if model_result is None:
+        return
+
+    records = model_result["test_records"]
+    capacity = st.slider(
+        "Maximum customers the campaign can contact",
+        min_value=1,
+        max_value=len(records),
+        value=min(500, len(records)),
+        step=1,
+    )
+    c1, c2, c3 = st.columns(3)
+    contact_cost = c1.number_input(
+        "Contact cost per customer",
+        min_value=0.0,
+        value=10.0,
+        step=1.0,
+    )
+    success_rate_percent = c2.slider(
+        "Retention success rate (%)",
+        min_value=0,
+        max_value=100,
+        value=20,
+        step=5,
+    )
+    success_rate = success_rate_percent / 100
+    retained_value = c3.number_input(
+        "Estimated value per retained customer",
+        min_value=0.0,
+        value=1_000.0,
+        step=100.0,
+    )
+    scenario, targets = simulate_retention_campaign(
+        records,
+        capacity,
+        contact_cost,
+        success_rate,
+        retained_value,
+    )
+    r1, r2, r3, r4 = st.columns(4)
+    r1.metric("Customers targeted", f"{scenario['customers_targeted']:,}")
+    r2.metric("Expected retained", f"{scenario['expected_customers_retained']:.1f}")
+    r3.metric("Campaign cost", f"{scenario['campaign_cost']:,.2f}")
+    r4.metric("Estimated net benefit", f"{scenario['estimated_net_benefit']:,.2f}")
+    r5, r6, r7 = st.columns(3)
+    r5.metric(
+        "Expected churners reached",
+        f"{scenario['expected_churners_reached']:.1f}",
+    )
+    r6.metric(
+        "Estimated value protected",
+        f"{scenario['estimated_value_protected']:,.2f}",
+    )
+    roi = scenario["estimated_roi"]
+    r7.metric("Estimated ROI", f"{roi:.1%}" if pd.notna(roi) else "N/A")
+
+    display_columns = [
+        "CustomerId",
+        "RandomForestProbability",
+        "Geography",
+        "Age",
+        "Balance",
+        "NumOfProducts",
+        "IsActiveMember",
+    ]
+    st.subheader("Highest-risk customers selected by campaign capacity")
+    st.dataframe(
+        targets[display_columns].head(200).style.format(
+            {
+                "RandomForestProbability": "{:.1%}",
+                "Balance": "{:,.2f}",
+            }
+        ),
+        width="stretch",
+        hide_index=True,
+    )
+    st.download_button(
+        "Download campaign target list",
+        data=targets[display_columns].to_csv(index=False).encode("utf-8"),
+        file_name="retention_campaign_targets.csv",
+        mime="text/csv",
+    )
+    st.warning(
+        "This is a scenario, not forecast revenue. It uses uncalibrated holdout probabilities "
+        "and user assumptions because the dataset has no campaign cost, margin, or lifetime value."
     )
 
 
@@ -399,13 +723,25 @@ def run_dashboard() -> None:
         st.warning("The current filters return no customers.")
         st.stop()
 
-    overview, segments, demographics, high_value, model = st.tabs(
+    (
+        overview,
+        segments,
+        demographics,
+        high_value,
+        model,
+        validation,
+        explainability,
+        roi,
+    ) = st.tabs(
         [
             "Overview",
             "Segments",
             "Geography & demographics",
             "High-value customers",
             "ML model comparison",
+            "Model validation",
+            "Explainability & fairness",
+            "Retention ROI",
         ]
     )
     with overview:
@@ -418,3 +754,9 @@ def run_dashboard() -> None:
         _render_high_value(data, filtered)
     with model:
         _render_model_comparison(data)
+    with validation:
+        _render_model_validation(data)
+    with explainability:
+        _render_explainability_and_fairness(data)
+    with roi:
+        _render_retention_roi(data)

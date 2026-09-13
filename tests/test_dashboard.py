@@ -26,4 +26,7 @@ def test_dashboard_opens_with_bundled_data_and_no_upload_control():
         "Geography & demographics",
         "High-value customers",
         "ML model comparison",
+        "Model validation",
+        "Explainability & fairness",
+        "Retention ROI",
     ]

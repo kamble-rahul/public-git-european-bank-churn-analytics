@@ -8,10 +8,13 @@ import plotly.graph_objects as go
 
 from european_bank_churn.data import prepare_data
 from european_bank_churn.visualization import (
+    calibration_figure,
     churn_bar,
     confusion_matrix_figure,
     feature_importance_figure,
     geography_age_heatmap,
+    logistic_coefficient_figure,
+    permutation_importance_figure,
     salary_balance_scatter,
 )
 
@@ -66,3 +69,37 @@ def test_salary_balance_scatter_contains_both_churn_classes(customer_frame):
         "Retained",
         "Churned",
     }
+
+
+def test_advanced_model_diagnostic_figures_are_labeled():
+    calibration = calibration_figure(
+        {
+            "Model": pd.DataFrame(
+                {
+                    "MeanPredictedProbability": [0.2, 0.8],
+                    "ObservedChurnRate": [0.1, 0.9],
+                }
+            )
+        }
+    )
+    permutation = permutation_importance_figure(
+        pd.DataFrame(
+            {
+                "Feature": ["Age", "Activity"],
+                "ImportanceMean": [0.2, 0.1],
+                "ImportanceStd": [0.02, 0.01],
+            }
+        )
+    )
+    coefficients = logistic_coefficient_figure(
+        pd.DataFrame(
+            {
+                "Feature": ["Age", "Activity"],
+                "Coefficient": [0.4, -0.3],
+                "Direction": ["Higher predicted churn", "Lower predicted churn"],
+            }
+        )
+    )
+    assert calibration.layout.title.text == "Probability calibration on the holdout set"
+    assert permutation.layout.title.text == "Holdout permutation importance (PR-AUC decrease)"
+    assert coefficients.layout.title.text == "Logistic Regression direction of association"
